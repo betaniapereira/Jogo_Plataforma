@@ -13,7 +13,6 @@ TILE_SIZE = 40
 game_state = 'menu'
 sound_on = True
 score = 0
-game_over = False
 
 player = None
 platforms = []
@@ -69,6 +68,8 @@ class Player(Actor):
         if keyboard.space and self.on_ground:
             self.vy = JUMP_STRENGTH
             self.on_ground = False
+            if sound_on:
+                sounds.jump.play()
 
         if not self.on_ground:
             self.vy += GRAVITY
@@ -210,7 +211,7 @@ def draw():
         screen.draw.filled_rect(quit_button_rect, 'red')
         screen.draw.text("Quit", center=quit_button_rect.center, fontsize=40, color="white")
     
-    elif game_state == 'playing':
+    elif game_state in ['playing', 'win', 'lose']:
         for wall in background_walls: wall.draw()
         for d in decorations: d.draw()
         for p in platforms: p.draw()
@@ -220,15 +221,21 @@ def draw():
 
         screen.draw.text(f"Score: {int(score)}", topleft=(10, 10), fontsize=40, color="white", owidth=1, ocolor="black")
         
-        if game_over:
+        if game_state == 'win':
+            screen.draw.text("YOU WIN!", center=(WIDTH / 2, HEIGHT / 2), fontsize=100, color="yellow", owidth=1, ocolor="black")
+            screen.draw.text(f"Final Score: {int(score)}", center=(WIDTH / 2, HEIGHT / 2 + 60), fontsize=50, color="white")
+            screen.draw.filled_rect(restart_button_rect, 'blue')
+            screen.draw.text("Play Again", center=restart_button_rect.center, fontsize=40, color="white")
+        
+        elif game_state == 'lose':
             screen.draw.text("GAME OVER", center=(WIDTH / 2, HEIGHT / 2), fontsize=100, color="red", owidth=1, ocolor="black")
             screen.draw.text(f"Final Score: {int(score)}", center=(WIDTH / 2, HEIGHT / 2 + 60), fontsize=50, color="white")
             screen.draw.filled_rect(restart_button_rect, 'blue')
             screen.draw.text("Play Again", center=restart_button_rect.center, fontsize=40, color="white")
 
 def update(dt):
-    global score, game_over
-    if game_state != 'playing' or game_over:
+    global score, game_state
+    if game_state != 'playing':
         return
     
     for p in platforms:
@@ -239,19 +246,20 @@ def update(dt):
     for e in enemies: e.update()
 
     if goal and player.colliderect(goal):
-        game_over = True
+        game_state = 'win'
+        return
 
     for e in enemies:
         if player.colliderect(e):
             if sound_on: sounds.hit.play()
-            game_over = True
+            game_state = 'lose'
             return
 
     score += dt * 10 
 
     if player.top > HEIGHT:
         if sound_on: sounds.hit.play()
-        game_over = True
+        game_state = 'lose'
 
 def on_mouse_down(pos):
     global game_state, sound_on
@@ -264,8 +272,9 @@ def on_mouse_down(pos):
             update_music()
         if quit_button_rect.collidepoint(pos):
             quit()
-    elif game_state == 'playing' and game_over:
+    elif game_state in ['win', 'lose']:
         if restart_button_rect.collidepoint(pos):
+            game_state = 'playing'
             setup_game()
 
 def update_music():
